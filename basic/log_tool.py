@@ -72,7 +72,7 @@ class MyLogger:
         # 设置CMD日志
         if cenable == True and re.search(r'linux', sys.platform):
             pass
-        else:
+        elif cenable == True:
             self.sh = logging.StreamHandler()
             self.sh.setFormatter(self.fmt)
             self.sh.setLevel(clevel)

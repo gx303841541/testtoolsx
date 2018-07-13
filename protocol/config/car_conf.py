@@ -105,7 +105,6 @@ COM_UPLOAD_RECORD = {
     "send_msg": {
         "Command": 'COM_UPLOAD_RECORD',
         "EventCode": "will_be_replace",
-		"Result": 0,
         "Data": [
                 {
                     "deviceID": "##self._deviceID##",

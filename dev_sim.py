@@ -32,7 +32,7 @@ from APIs.common_APIs import (my_system, my_system_full_output,
 from basic.cprint import cprint
 from basic.log_tool import MyLogger
 from basic.task import Task
-from protocol.light_devices import Door
+from protocol.light_devices import Dev
 
 
 class ArgHandle():
@@ -56,6 +56,14 @@ class ArgHandle():
             default=0,
             type=int,
             help='special device ids',
+        )
+        parser.add_argument(
+            '-e', '--encrypt',
+            dest='encrypt',
+            action='store',
+            default=1,
+            type=int,
+            help='encrypt',
         )
         parser.add_argument(
             '-p', '--server-port',
@@ -140,8 +148,8 @@ class MyCmd(Cmd):
 
     def do_record(self, arg, opts=None):
         for i in self.sim_objs:
-            self.sim_objs[i].send_msg(
-                self.sim_objs[i].get_upload_record(int(arg)))
+            i.send_msg(
+                i.get_upload_record(int(arg)))
 
     def help_event(self):
         cprint.notice_p("send event")
@@ -200,7 +208,7 @@ if __name__ == '__main__':
     sys_init()
 
     if arg_handle.get_args('device_count') > 1:
-        log_level = logging.INFO
+        log_level = logging.WARN
     else:
         log_level = logging.INFO
 
@@ -209,8 +217,8 @@ if __name__ == '__main__':
         dev_LOG = MyLogger('dev_sim_%d.log' % (
             i), clevel=log_level, flevel=log_level, fenable=False)
 
-        sim = Door(logger=dev_LOG, config_file=arg_handle.get_args('config_file'), server_addr=(
-            arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=arg_handle.get_args('xx') + i, tt=arg_handle.get_args('tt'))
+        sim = Dev(logger=dev_LOG, config_file=arg_handle.get_args('config_file'), server_addr=(
+            arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=arg_handle.get_args('xx') + i, tt=arg_handle.get_args('tt'), encrypt_flag=arg_handle.get_args('encrypt'))
         sim.run_forever()
         sims.append(sim)
 

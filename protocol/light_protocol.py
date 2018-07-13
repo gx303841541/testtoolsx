@@ -22,6 +22,7 @@ from collections import defaultdict
 import APIs.common_APIs as common_APIs
 import connections.my_socket as my_socket
 from APIs.common_APIs import crc, crc16, protocol_data_printB
+from APIs.security import AES_CBC_decrypt, AES_CBC_encrypt
 from protocol.protocol_process import communication_base
 
 try:
@@ -31,12 +32,13 @@ except:
 
 
 class SDK(communication_base):
-    def __init__(self, logger, addr):
+    def __init__(self, logger, addr, encrypt_flag=0):
         self.queue_in = Queue.Queue()
         self.queue_out = Queue.Queue()
         super(SDK, self).__init__(logger, self.queue_in, self.queue_out,
                                   left_data=b'', min_length=57)
         self.addr = addr
+        self.encrypt_flag = encrypt_flag
         self.name = 'Device controler'
         self.connection = my_socket.MyClient(logger, addr)
         self.state = 'close'
@@ -52,6 +54,9 @@ class SDK(communication_base):
 
     def msg_build(self, data, ack=b'\x01'):
         self.LOG.yinfo("send msg: " + self.convert_to_dictstr(data))
+        # need encrypt
+        if self.encrypt_flag:
+            data = AES_CBC_encrypt(self.sim_obj._encrypt_key, data)
         if isinstance(data, type(b'')):
             pass
         else:
@@ -79,7 +84,7 @@ class SDK(communication_base):
         left_data = b''
 
         while data[0:1] != b'\x48' and len(data) >= self.min_length:
-            self.LOG.warn('give up dirty data: %02x' % ord(data[0]))
+            self.LOG.warn('give up dirty data: %02x' % ord(str(data[0])))
             data = data[1:]
 
         if len(data) < self.min_length:
@@ -95,11 +100,14 @@ class SDK(communication_base):
                             data)
                         data_list += data_list_tmp
                         left_data += left_data_tmp
-                elif length >= 1 and length < 1000:
+                    else:
+                        #self.LOG.error('data field is empty!')
+                        pass
+                elif length >= 1 and length < 10000:
                     left_data = data
                 else:
                     for s in data[:4]:
-                        self.LOG.warn('give up dirty data: %02x' % ord(s))
+                        self.LOG.warn('give up dirty data: %02x' % ord(chr(s)))
                     left_data = data[4:]
             else:
                 pass
@@ -109,7 +117,7 @@ class SDK(communication_base):
     def add_pkg_number(self):
         pkg_number = struct.unpack('>I', self.pkg_number)[0]
         pkg_number += 1
-        self.pkg_number = struct.pack('>I', self.pkg_number)
+        self.pkg_number = struct.pack('>I', pkg_number)
 
     def get_pkg_number(self, data):
         return truct.unpack('>I', data)[0]
@@ -125,12 +133,17 @@ class SDK(communication_base):
         if msg[0:4] == b'\x48\x44\x58\x4d':
             if True or msg[4 + 20:4 + 20 + 20] == self.device_id or msg[4 + 20:4 + 20 + 20] == self.device_id.encode('utf-8'):
                 if msg[44:45] != b'\x00':
-                    #self.LOG.info("Get ack!")
+                    # self.LOG.info("Get ack!")
                     ack = True
                 self.set_pkg_number(msg[45:49])
                 data_length = struct.unpack('>I', msg[49:53])[0]
                 crc16 = struct.unpack('>H', msg[55:57])
-                data = json.loads(msg[57:57 + data_length].decode('utf-8'))
+                # need decrypt
+                if self.encrypt_flag:
+                    data = json.loads(AES_CBC_decrypt(self.sim_obj._encrypt_key,
+                                                      msg[57:57 + data_length]).decode('utf-8'))
+                else:
+                    data = json.loads(msg[57:57 + data_length].decode('utf-8'))
                 self.LOG.info("recv msg: " + self.convert_to_dictstr(data))
                 rsp_msg = self.sim_obj.protocol_handler(data, ack)
                 if rsp_msg:

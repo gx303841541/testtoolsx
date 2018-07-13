@@ -75,9 +75,9 @@ class BaseSim():
             self.LOG.warn("\t\t\trsp: %d" % (self.msgst[msg_code]['rsp']))
             self.LOG.warn("-" * 30)
 
-    def send_msg(self, msg):
+    def send_msg(self, msg, ack=b'\x01'):
         self.update_msgst(json.loads(msg)['Command'], 'req')
-        return self.sdk_obj.add_send_data(self.sdk_obj.msg_build(msg))
+        return self.sdk_obj.add_send_data(self.sdk_obj.msg_build(msg, ack))
 
     @abstractmethod
     def protocol_handler(self, msg, ack=False):
@@ -123,21 +123,21 @@ class BaseSim():
                 self.old_status[item] = copy.deepcopy(self.__dict__[item])
 
         if need_send_report:
-            self.send_msg(self.get_event_report())
+            self.send_msg(self.get_event_report(), ack=b'\x00')
 
 
-class Door(BaseSim):
-    def __init__(self, logger, config_file, server_addr, N=0, tt=None, xx=1):
-        super(Door, self).__init__(logger)
+class Dev(BaseSim):
+    def __init__(self, logger, config_file, server_addr, N=0, tt=None, encrypt_flag=0):
+        super(Dev, self).__init__(logger)
         module_name = "protocol.config.%s" % config_file
         mod = import_module(module_name)
         self.sim_config = mod
         self.LOG = logger
         self.N = N
         self.tt = tt
-        self.xx = xx
+        self.encrypt_flag = encrypt_flag
         self.attribute_initialization()
-        self.sdk_obj = SDK(logger=logger, addr=server_addr)
+        self.sdk_obj = SDK(logger=logger, addr=server_addr, encrypt_flag=self.encrypt_flag)
         self.sdk_obj.sim_obj = self
         self.sdk_obj.device_id = self._deviceID
         self.need_stop = False
@@ -174,8 +174,8 @@ class Door(BaseSim):
         self.task_obj.add_task(
             'dev register', self.to_register_dev, 1, 100)
 
-        # self.task_obj.add_task(
-        #    'heartbeat', self.to_send_heartbeat, 1000000, 6000)
+        self.task_obj.add_task(
+            'heartbeat', self.to_send_heartbeat, 1000000, 5000)
 
     def msg_dispatch(self):
         msgs = []
@@ -201,11 +201,11 @@ class Door(BaseSim):
                     time.sleep(self.test_msgs["interval"] / 1000.0)
                 tmp_msg = msg.split('.')
                 if tmp_msg[0] == 'COM_UPLOAD_DEV_STATUS':
-                    self.send_msg(self.get_upload_status())
+                    self.send_msg(self.get_upload_status(), ack=b'\x00')
                 elif tmp_msg[0] == 'COM_UPLOAD_RECORD':
-                    self.send_msg(self.get_upload_record(tmp_msg[-1]))
+                    self.send_msg(self.get_upload_record(tmp_msg[-1]), ack=b'\x00')
                 elif tmp_msg[0] == 'COM_UPLOAD_EVENT':
-                    self.send_msg(self.get_upload_event(tmp_msg[-1]))
+                    self.send_msg(self.get_upload_event(tmp_msg[-1]), ack=b'\x00')
                 else:
                     self.LOG.error("Unknow msg to dispatch: %s" % (msg))
 
@@ -245,7 +245,7 @@ class Door(BaseSim):
                 self.old_status[item] = copy.deepcopy(self.__dict__[item])
 
         if need_send_report:
-            self.send_msg(self.get_upload_status())
+            self.send_msg(self.get_upload_status(), ack=b'\x00')
 
     def to_register_dev(self):
         if self.dev_register:
@@ -253,14 +253,15 @@ class Door(BaseSim):
         else:
             self.LOG.info(common_APIs.chinese_show("发送设备注册"))
             self.send_msg(json.dumps(
-                self.get_send_msg('COM_DEV_REGISTER')))
+                self.get_send_msg('COM_DEV_REGISTER')), ack=b'\x00')
 
     def to_send_heartbeat(self):
-        self.send_msg(json.dumps(
-            self.get_send_msg('COM_HEARTBEAT')))
+        if self.dev_register:
+            self.send_msg(json.dumps(
+                self.get_send_msg('COM_HEARTBEAT')), ack=b'\x00')
 
     def get_upload_status(self):
-        # self.LOG.warn(common_APIs.chinese_show("设备状态上报"))
+        self.LOG.warn(common_APIs.chinese_show("设备状态上报"))
         return json.dumps(self.get_send_msg('COM_UPLOAD_DEV_STATUS'))
 
     def get_upload_record(self, record_type):
@@ -283,7 +284,9 @@ class Door(BaseSim):
             if msg['Command'] == 'COM_DEV_REGISTER':
                 if msg['Result'] == 0:
                     self.dev_register = True
-                    #self.add_item('_decrypt_key', msg['Data'][0]['aeskey'])
+                    # decrypt
+                    if self.encrypt_flag:
+                        self.add_item('_encrypt_key', msg['Data'][0]['aeskey'])
                     self.LOG.warn(common_APIs.chinese_show("设备已经注册"))
                     return None
                 else:
@@ -291,12 +294,13 @@ class Door(BaseSim):
                     self.LOG.warn(common_APIs.chinese_show("设备注册失败"))
                     return None
             else:
-                #self.LOG.warn('Unknow msg: %s!' % (msg['Command']))
                 return None
         else:
             self.update_msgst(msg['Command'], 'req')
 
-        if msg['Command'] in self.command_list:
+        if msg['Command'] == 'COM_HEARTBEAT':
+            pass
+        elif msg['Command'] in self.command_list:
             self.set_items(msg['Command'], msg)
             rsp_msg = self.get_rsp_msg(msg['Command'])
             self.update_msgst(msg['Command'], 'rsp')
@@ -332,6 +336,8 @@ class Door(BaseSim):
             msg_param_list = msg_param.split('.')
             tmp_msg = msg[msg_param_list[0]]
             for i in msg_param_list[1:]:
+                if re.match(r'\d+', i):
+                    i = int(i)
                 tmp_msg = tmp_msg[i]
             self.set_item(item, tmp_msg)
 
@@ -346,6 +352,8 @@ class Door(BaseSim):
         #"_subDeviceID": "301058FCDBDA53800001",
         self._deviceID = str(self.DeviceFacturer) + \
             str(self.DeviceType) + self._mac.replace(":", '')
+        self._encrypt_key = self._deviceID[-16:].encode('utf-8')
+        #self._decrypt_key = self._deviceID[-16:].encode('utf-8')
         self._subDeviceID = str(self.subDeviceType) + \
             self._mac.replace(":", '') + "%04d" % (self.N + 1)
 
