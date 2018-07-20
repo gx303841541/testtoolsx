@@ -156,8 +156,8 @@ class MyCmd(Cmd):
 
     def do_event(self, arg, opts=None):
         for i in self.sim_objs:
-            self.sim_objs[i].send_msg(
-                self.sim_objs[i].get_upload_event(int(arg)))
+            i.send_msg(
+                i.get_upload_event(int(arg)))
 
     def help_set(self):
         cprint.notice_p("set state")
