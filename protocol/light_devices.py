@@ -127,7 +127,7 @@ class BaseSim():
 
 
 class Dev(BaseSim):
-    def __init__(self, logger, config_file, server_addr, N=0, tt=None, encrypt_flag=0):
+    def __init__(self, logger, config_file, server_addr, N=0, tt=None, encrypt_flag=0, self_addr=None):
         super(Dev, self).__init__(logger)
         module_name = "protocol.config.%s" % config_file
         mod = import_module(module_name)
@@ -137,7 +137,8 @@ class Dev(BaseSim):
         self.tt = tt
         self.encrypt_flag = encrypt_flag
         self.attribute_initialization()
-        self.sdk_obj = SDK(logger=logger, addr=server_addr, encrypt_flag=self.encrypt_flag)
+        self.sdk_obj = SDK(logger=logger, addr=server_addr,
+                           encrypt_flag=self.encrypt_flag, self_addr=self_addr)
         self.sdk_obj.sim_obj = self
         self.sdk_obj.device_id = self._deviceID
         self.need_stop = False

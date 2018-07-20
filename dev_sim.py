@@ -95,6 +95,13 @@ class ArgHandle():
             type=int,
             help='Specify how many devices to start, default is only 1',
         )
+        parser.add_argument(
+            '--self_IP',
+            dest='self_IP',
+            action='store',
+            default='',
+            help='Specify TCP client IP address',
+        )
         return parser
 
     def get_args(self, attrname):
@@ -102,6 +109,18 @@ class ArgHandle():
 
     def check_args(self):
         global ipv4_list
+        ipv4_list = []
+
+        if arg_handle.get_args('self_IP'):
+            ipv4s = common_APIs.get_local_ipv4()
+            ip_prefix = '.'.join(arg_handle.get_args(
+                'self_IP').split('.')[0:-1])
+            ip_start = int(arg_handle.get_args('self_IP').split('.')[-1])
+            ipv4_list = [ip for ip in ipv4s if re.search(
+                r'%s' % (ip_prefix), ip) and int(ip.split('.')[-1]) >= ip_start]
+
+            for ipv4 in ipv4_list:
+                cprint.notice_p("find ip: " + ipv4)
 
     def run(self):
         self.args = self.parser.parse_args()
@@ -164,8 +183,8 @@ class MyCmd(Cmd):
 
     def do_set(self, arg, opts=None):
         args = arg.split()
-        for i in len(self.sim_objs):
-            self.sim_objs[i].set_item(args[0], args[1])
+        for i in self.sim_objs:
+            i.set_item(args[0], args[1])
 
     def default(self, arg, opts=None):
         try:
@@ -206,7 +225,7 @@ def sys_cleanup():
 
 if __name__ == '__main__':
     sys_init()
-
+    global ipv4_list
     if arg_handle.get_args('device_count') > 1:
         log_level = logging.WARN
     else:
@@ -217,8 +236,15 @@ if __name__ == '__main__':
         dev_LOG = MyLogger('dev_sim_%d.log' % (
             i), clevel=log_level, flevel=log_level, fenable=False)
 
+        if ipv4_list:
+            id = i % len(ipv4_list)
+            self_addr = (ipv4_list[id], random.randint(arg_handle.get_args('server_port'), 65535))
+            dev_LOG.warn('self addr is: %s' % (str(self_addr)))
+        else:
+            self_addr = None
+
         sim = Dev(logger=dev_LOG, config_file=arg_handle.get_args('config_file'), server_addr=(
-            arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=arg_handle.get_args('xx') + i, tt=arg_handle.get_args('tt'), encrypt_flag=arg_handle.get_args('encrypt'))
+            arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=arg_handle.get_args('xx') + i, tt=arg_handle.get_args('tt'), encrypt_flag=arg_handle.get_args('encrypt'), self_addr=self_addr)
         sim.run_forever()
         sims.append(sim)
 
