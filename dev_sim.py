@@ -238,7 +238,8 @@ if __name__ == '__main__':
 
         if ipv4_list:
             id = i % len(ipv4_list)
-            self_addr = (ipv4_list[id], random.randint(arg_handle.get_args('server_port'), 65535))
+            self_addr = (ipv4_list[id], random.randint(
+                arg_handle.get_args('server_port'), 65535))
             dev_LOG.warn('self addr is: %s' % (str(self_addr)))
         else:
             self_addr = None
