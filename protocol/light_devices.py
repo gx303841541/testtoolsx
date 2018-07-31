@@ -176,7 +176,7 @@ class Dev(BaseSim):
             'dev register', self.to_register_dev, 1, 100)
 
         self.task_obj.add_task(
-            'heartbeat', self.to_send_heartbeat, 1000000, 5000)
+            'heartbeat', self.to_send_heartbeat, 1000000, 3000)
 
     def msg_dispatch(self):
         msgs = []
@@ -204,9 +204,11 @@ class Dev(BaseSim):
                 if tmp_msg[0] == 'COM_UPLOAD_DEV_STATUS':
                     self.send_msg(self.get_upload_status(), ack=b'\x00')
                 elif tmp_msg[0] == 'COM_UPLOAD_RECORD':
-                    self.send_msg(self.get_upload_record(tmp_msg[-1]), ack=b'\x00')
+                    self.send_msg(self.get_upload_record(
+                        tmp_msg[-1]), ack=b'\x00')
                 elif tmp_msg[0] == 'COM_UPLOAD_EVENT':
-                    self.send_msg(self.get_upload_event(tmp_msg[-1]), ack=b'\x00')
+                    self.send_msg(self.get_upload_event(
+                        tmp_msg[-1]), ack=b'\x00')
                 else:
                     self.LOG.error("Unknow msg to dispatch: %s" % (msg))
 
@@ -339,6 +341,8 @@ class Dev(BaseSim):
             for i in msg_param_list[1:]:
                 if re.match(r'\d+', i):
                     i = int(i)
+                else:
+                    pass
                 tmp_msg = tmp_msg[i]
             self.set_item(item, tmp_msg)
 

@@ -5,7 +5,6 @@
 by Kobe Gong. 2018-1-15
 """
 
-
 import argparse
 import copy
 import datetime
@@ -167,7 +166,7 @@ if __name__ == '__main__':
     y = [item[1] / 1000.0 for item in st_list]
     z = [item[0] / (int(time_interval) + 0.0) for item in st_list]
 
-    #plt.bar(left=x, height=y, color='green', width=0.1, linestyle='--')
+    # plt.bar(left=x, height=y, color='green', width=0.1, linestyle='--')
     plt.plot(x, y, 'r--')
     plt.xlabel("%d(s)" % (30 * arg_handle.get_args('counter')))  # X轴标签
     plt.ylabel("AVG delay")  # Y轴标签
@@ -176,7 +175,7 @@ if __name__ == '__main__':
     plt.savefig("d.jpg")  # 保存图
 
     plt.figure()
-    #plt.bar(left=x, height=z, color='green', width=0.1, linestyle='--')
+    # plt.bar(left=x, height=z, color='green', width=0.1, linestyle='--')
     plt.plot(x, z, 'b--')
     plt.xlabel("%d(s)" % (30 * arg_handle.get_args('counter')))  # X轴标签
     plt.ylabel("QPS")  # Y轴标签
