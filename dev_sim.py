@@ -246,6 +246,8 @@ if __name__ == '__main__':
 
         sim = Dev(logger=dev_LOG, config_file=arg_handle.get_args('config_file'), server_addr=(
             arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=arg_handle.get_args('xx') + i, tt=arg_handle.get_args('tt'), encrypt_flag=arg_handle.get_args('encrypt'), self_addr=self_addr)
+        if self_addr:
+            sim.set_item('_ip', self_addr[0])
         sim.run_forever()
         sims.append(sim)
 
