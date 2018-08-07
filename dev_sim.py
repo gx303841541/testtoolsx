@@ -119,6 +119,7 @@ class ArgHandle():
             ipv4_list = [ip for ip in ipv4s if re.search(
                 r'%s' % (ip_prefix), ip) and int(ip.split('.')[-1]) >= ip_start]
 
+            ipv4_list.sort()
             for ipv4 in ipv4_list:
                 cprint.notice_p("find ip: " + ipv4)
 
